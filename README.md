@@ -22,3 +22,6 @@
 - 串级PID,位置环+角度环+角速度环
 ![串级PID,位置环+角度环+角速度环](assets/PidController3.gif)
 ![串级PID,位置环+角度环+角速度环](assets/PidController3.png)
+- MPC
+![极点配置](assets/MPCController.gif)
+![极点配置](assets/MPCController.png)

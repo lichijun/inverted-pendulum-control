@@ -3,7 +3,7 @@ from scipy.integrate import solve_ivp
 import matplotlib.pyplot as plt
 from visualization import PendulumAnimator, visualize
 from controller_collection import OpenLoopController, PolePlacementController, LQRController,\
-                                  PidController1, PidController2, PidController3, MPCController
+                                  PidController1, PidController2, PidController3, MPCController, PolePlacementControllerWithObserver
 
 # 仿真模型
 def dynamics(t, state, u):
@@ -65,8 +65,11 @@ control_interval = 0.01 # 控制时间间隔
 # # PID控制(串级PID,位置环+角度环+角速度环)
 # controller = PidController3(0.01, 0, 5, 0, 5, 0, 20, 0, 10, 0, 20, 0, control_interval)
 
-# MPC控制
-controller = MPCController(sim_interval)
+# # MPC控制
+# controller = MPCController(sim_interval)
+
+# 极点配置控制（带状态观测器） 
+controller = PolePlacementControllerWithObserver(sim_interval, initial_state)
 
 # 开始仿真
 state = initial_state

@@ -256,3 +256,55 @@ class MPCController(Controller):
         output = res.x[-self.N]
         print('output %.2f' % (output))
         return output
+    
+class PolePlacementControllerWithObserver(Controller):
+
+    def __init__(self, Ts, initial_state):
+        self.K = None
+        self.Ts = Ts
+        self.output = None
+        self.state_hat = initial_state
+        self.desired_poles_controller = np.array([0.98, 0.97, complex(0.9, 0.16), complex(0.9, -0.16)]) 
+        self.desired_poles_observer = np.array([0.4, 0.15, 0.3, 0.1]) 
+
+    def control(self, t, state):
+        if t == 0:
+            # linearlized continue model parameter
+            A = np.array([[0, 1, 0, 0],
+            [0, 0, -0.363, 0],
+            [0, 0, 0, 1],
+            [0, 0, 15.244, 0]])
+            B = np.array([[0],
+                        [0.494],
+                        [0],
+                        [-0.741]])
+            C = np.array([[1, 0, 0, 0], [0, 0, 1, 0]])
+            D = np.array([[0], [0]])
+            system = (A, B, C, D)
+
+            # get discrete system
+            self.A_d, self.B_d, self.C_d, D_d, dt = cont2discrete(system, self.Ts, method='backward_diff')
+
+            # place poles
+            placed_poles_controller = place_poles(self.A_d, self.B_d, self.desired_poles_controller)
+            self.K = placed_poles_controller.gain_matrix
+            print("controller feedback matrix K:")
+            print(self.K)
+            placed_poles_observer = place_poles(self.A_d.T, self.C_d.T, self.desired_poles_observer)
+            self.L = placed_poles_observer.gain_matrix.T
+            print("observer feedback matrix L:")
+            print(self.L)
+
+            self.output = -self.K @ self.state_hat
+            
+        else:
+            y = np.array([state[0], state[2]])
+            self.state_hat = (self.A_d - self.L @ self.C_d) @ self.state_hat + \
+                              self.B_d @ self.output + self.L @ y
+            self.output = -self.K @ self.state_hat
+            print("observer state error:")
+            print(state - self.state_hat)
+            # self.output = -self.K @ state
+        output = self.output[0]
+        # print('t %.2f, output %.2f' % (t, output))
+        return output

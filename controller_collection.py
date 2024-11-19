@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 from scipy.signal import place_poles
 from scipy.signal import cont2discrete
-from scipy.linalg import solve_continuous_are
+from scipy.linalg import solve_continuous_are, solve_discrete_are
 import scipy.sparse as sp
 from numpy.linalg import inv
 import math
@@ -27,57 +27,74 @@ class OpenLoopController(Controller):
 
 class PolePlacementController(Controller):
 
-    def __init__(self, desired_poles):
+    def __init__(self, Ts):
         self.K = None
-        self.desired_poles = desired_poles
+        self.Ts = Ts
+        self.output = None
+        self.desired_poles_controller = np.array([0.98, 0.97, complex(0.9, 0.16), complex(0.9, -0.16)]) 
+        self.desired_poles_observer = np.array([0.4, 0.15, 0.3, 0.1]) 
 
     def control(self, t, state):
         if t == 0:
-
-            # linearlized model parameter
-            matrix_A = np.array([[0, 1, 0, 0],
+            # linearlized continue model parameter
+            A = np.array([[0, 1, 0, 0],
             [0, 0, -0.363, 0],
             [0, 0, 0, 1],
             [0, 0, 15.244, 0]])
-
-            matrix_B = np.array([[0],
+            B = np.array([[0],
                         [0.494],
                         [0],
                         [-0.741]])
-            
-            placed_poles = place_poles(matrix_A, matrix_B, self.desired_poles)
-            self.K = placed_poles.gain_matrix
-            output = -self.K @ state
-            print("Feedback matrix K:")
+            C = np.array([[1, 0, 0, 0], [0, 0, 1, 0]])
+            D = np.array([[0], [0]])
+            system = (A, B, C, D)
+
+            # get discrete system
+            self.A_d, self.B_d, self.C_d, D_d, dt = cont2discrete(system, self.Ts, method='backward_diff')
+
+            # place poles
+            placed_poles_controller = place_poles(self.A_d, self.B_d, self.desired_poles_controller)
+            self.K = placed_poles_controller.gain_matrix
+            print("controller feedback matrix K:")
             print(self.K)
+
+            self.output = -self.K @ state
+            
         else:
-            output = -self.K @ state
-        output = output[0]
+            self.output = -self.K @ state
+        output = self.output[0]
+        # print('t %.2f, output %.2f' % (t, output))
         return output
     
 class LQRController(Controller):
 
-    def __init__(self, matrix_Q, matrix_R):
+    def __init__(self, matrix_Q, matrix_R, Ts):
         self.matrix_Q = matrix_Q
         self.matrix_R = matrix_R
         self.K = None
+        self.Ts = Ts
 
     def control(self, t, state):
         if t == 0:
 
-            # linearlized model parameter
-            matrix_A = np.array([[0, 1, 0, 0],
+            # linearlized continue model parameter
+            A = np.array([[0, 1, 0, 0],
             [0, 0, -0.363, 0],
             [0, 0, 0, 1],
             [0, 0, 15.244, 0]])
-
-            matrix_B = np.array([[0],
+            B = np.array([[0],
                         [0.494],
                         [0],
                         [-0.741]])
+            C = np.array([[1, 0, 0, 0], [0, 0, 1, 0]])
+            D = np.array([[0], [0]])
+            system = (A, B, C, D)
 
-            P = solve_continuous_are(matrix_A, matrix_B, self.matrix_Q, self.matrix_R)
-            self.K = inv(self.matrix_R).dot(matrix_B.T).dot(P)
+            # get discrete system
+            A_d, B_d, C_d, D_d, dt = cont2discrete(system, self.Ts, method='backward_diff')
+
+            P = solve_discrete_are(A_d, B_d, self.matrix_Q, self.matrix_R)
+            self.K = inv(self.matrix_R).dot(B_d.T).dot(P)
             output = -self.K @ state
 
             print("Feedback matrix K:")
@@ -126,9 +143,7 @@ class PidController1(Controller):
         theta = float(state[2])
 
         output = self.controller_theta.control(t, theta, self.desired_theta, -1.0)
-        temp = t%self.Ts
-        if math.isclose(t%self.Ts, 0, abs_tol=1e-6) or math.isclose(t%self.Ts, self.Ts, abs_tol=1e-6):
-            print('PID: t %.2f theta  %.2f output %.2f' % (t, theta, output))
+        print('PID: t %.2f theta  %.2f output %.2f' % (t, theta, output))
         return output
 
 # two cascaded loop, theta, theta_dot
@@ -263,7 +278,9 @@ class PolePlacementControllerWithObserver(Controller):
         self.K = None
         self.Ts = Ts
         self.output = None
-        self.state_hat = initial_state
+        self.observer_error = []
+        self.observer_time = []
+        self.state_hat = np.array(initial_state)
         self.desired_poles_controller = np.array([0.98, 0.97, complex(0.9, 0.16), complex(0.9, -0.16)]) 
         self.desired_poles_observer = np.array([0.4, 0.15, 0.3, 0.1]) 
 
@@ -296,6 +313,8 @@ class PolePlacementControllerWithObserver(Controller):
             print(self.L)
 
             self.output = -self.K @ self.state_hat
+            self.observer_error.append(state - self.state_hat)
+            self.observer_time.append(t)
             
         else:
             y = np.array([state[0], state[2]])
@@ -304,7 +323,12 @@ class PolePlacementControllerWithObserver(Controller):
             self.output = -self.K @ self.state_hat
             print("observer state error:")
             print(state - self.state_hat)
-            # self.output = -self.K @ state
+            self.observer_error.append(state - self.state_hat)
+            self.observer_time.append(t)
         output = self.output[0]
         # print('t %.2f, output %.2f' % (t, output))
         return output
+    
+    def observer_error_get(self):
+        self.observer_error = np.array(self.observer_error).T.tolist()
+        return self.observer_time, self.observer_error

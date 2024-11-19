@@ -123,3 +123,26 @@ class PendulumAnimator:
 
     def start(self):
         plt.show()
+
+def observer_error_analysis(time: List[float], error: List[List[float]]):
+    displacements_error = error[0]
+    angle_error = error[2]
+    velocity_error = error[1]
+    angler_velocity_error = error[3]
+    plt.figure(figsize=(10, 8))
+    plt.subplot(2, 1, 1)
+    plt.plot(time, displacements_error, label='x_err (Position error)')
+    plt.plot(time, angle_error, label='theta_err (Angle error)')
+    plt.xlabel('Time [s]')
+    plt.ylabel('Position / Angle')
+    plt.legend()
+
+    plt.subplot(2, 1, 2)
+    plt.plot(time, velocity_error, label='x_dot_err (Velocity error)')
+    plt.plot(time, angler_velocity_error, label='theta_dot_err (Angular Velocity error)')
+    plt.xlabel('Time [s]')
+    plt.ylabel('Velocity / Angular Velocity')
+    plt.legend()
+
+    plt.tight_layout()
+    plt.show()

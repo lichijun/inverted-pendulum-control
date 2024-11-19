@@ -10,6 +10,9 @@
 - 极点配置
 ![极点配置](assets/PolePlacementController.gif)
 ![极点配置](assets/PolePlacementController.png)
+- 带观测器的极点配置
+![控制曲线](assets/PolePlacementControllerWithObserverControlRes.png)
+![观测器误差曲线](assets/PolePlacementControllerWithObserverEstimateRes.png)
 - LQR
 ![LQR](assets/LQRController.gif)
 ![LQR](assets/LQRController.png)
@@ -23,5 +26,5 @@
 ![串级PID,位置环+角度环+角速度环](assets/PidController3.gif)
 ![串级PID,位置环+角度环+角速度环](assets/PidController3.png)
 - MPC
-![极点配置](assets/MPCController.gif)
-![极点配置](assets/MPCController.png)
+![MPC](assets/MPCController.gif)
+![MPC](assets/MPCController.png)

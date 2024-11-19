@@ -1,7 +1,8 @@
 import numpy as np
+import math
 from scipy.integrate import solve_ivp
 import matplotlib.pyplot as plt
-from visualization import PendulumAnimator, visualize
+from visualization import PendulumAnimator, visualize, observer_error_analysis
 from controller_collection import OpenLoopController, PolePlacementController, LQRController,\
                                   PidController1, PidController2, PidController3, MPCController, PolePlacementControllerWithObserver
 
@@ -44,8 +45,7 @@ control_interval = 0.01 # 控制时间间隔
 # controller = OpenLoopController(0)
 
 # # 极点配置控制
-# desired_poles = np.array([-1, -2, complex(-1, np.sqrt(3)), complex(-1, -np.sqrt(3))])  
-# controller = PolePlacementController(desired_poles)
+# controller = PolePlacementController(control_interval)
 
 # # LQR控制
 # matrix_Q = np.array([[2, 0, 0, 0],
@@ -54,7 +54,7 @@ control_interval = 0.01 # 控制时间间隔
 #                                 [0, 0, 0, 0.2]])
             
 # matrix_R = np.array([[1]])
-# controller = LQRController(matrix_Q, matrix_R)
+# controller = LQRController(matrix_Q, matrix_R, control_interval)
 
 # # PID控制(角度环)
 # controller = PidController1(25, 0, 100, 0, control_interval)
@@ -66,10 +66,10 @@ control_interval = 0.01 # 控制时间间隔
 # controller = PidController3(0.01, 0, 5, 0, 5, 0, 20, 0, 10, 0, 20, 0, control_interval)
 
 # # MPC控制
-# controller = MPCController(sim_interval)
+# controller = MPCController(control_interval)
 
 # 极点配置控制（带状态观测器） 
-controller = PolePlacementControllerWithObserver(sim_interval, initial_state)
+controller = PolePlacementControllerWithObserver(control_interval, initial_state)
 
 # 开始仿真
 state = initial_state
@@ -77,9 +77,12 @@ sim_result = [state]
 sim_t = np.arange(0, sim_time, sim_interval)
 sim_t = sim_t.tolist()
 sim_t.append(sim_time)
+u = 0
 
 for t in np.arange(0, sim_time, sim_interval):
-    u = controller.control(t, state)
+    if math.isclose(t%control_interval, 0, abs_tol=1e-6) or \
+        math.isclose(t%control_interval, control_interval, abs_tol=1e-6):
+        u = controller.control(t, state)
     sol = solve_ivp(dynamics, (t, t+sim_interval), state, args=(u,))
     state = [row[-1] for row in sol.y]
     sim_result.append(state)
@@ -90,4 +93,7 @@ sim_disp_dot = [row[1] for row in sim_result]
 sim_theta = [row[2] for row in sim_result]
 sim_theta_dot = [row[3] for row in sim_result]
 visualize(sim_disp, sim_disp_dot, sim_theta, sim_theta_dot, sim_t)
+if isinstance(controller, PolePlacementControllerWithObserver):
+    time, error = controller.observer_error_get()
+    observer_error_analysis(time, error)
 PendulumAnimator(sim_disp, sim_theta, sim_t, initial_state).start()

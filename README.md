@@ -1,9 +1,12 @@
 # 倒立摆控制仿真（Python环境）
 
 ## 用法
-解除simulator.py中所选择的控制器代码的注释，运行simulator.py
+1. 配置环境
+   > 终端执行：conda env create -f inverted_pendulum_sim.yaml
+2. 运行仿真
+   > 解除simulator.py中所选择的控制器代码的注释，运行simulator.py
 
-## 仿真结果
+## 运行效果
 - 不加控制
 ![不加控制](assets/NoControl.gif)
 ![不加控制](assets/NoControl.png)
